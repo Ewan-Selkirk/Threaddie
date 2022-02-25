@@ -8,6 +8,7 @@
 | /remove_all_threads | N/A | Remove all threads in the current channel |
 
 ## Installation and Running
+- Install the requirements with `pip install -r requirements.txt`
 - Create a [Discord application](https://discord.com/developers/applications) and enable bot functionality
 - Create an `.env` file in the same folder at `bot.py` and place your bot token as `TOKEN={your-token-here}`
 - Enable developer mode in Discord to be able to copy IDs (Settings -> Advanced -> Developer Mode)
@@ -15,3 +16,6 @@
 - Invite the bot to your server using the OAuth2 URL generator: 
   - `https://discord.com/api/oauth2/authorize?client_id={YOUR-TOKEN-HERE}&permissions=395942423568&scope=bot%20applications.commands`
 - Run `bot.py`
+
+## Acknowledgements
+This project wouldn't be possible without the work of [discord.py](https://github.com/Rapptz/discord.py) and its continuation, [pycord](https://github.com/Pycord-Development/pycord/)
