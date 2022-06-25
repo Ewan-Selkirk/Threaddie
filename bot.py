@@ -1,12 +1,15 @@
+import json
 import os
+
 import discord
+from discord.commands import Option
 from discord.ui import InputText, Modal, View
-from discord.commands import Option, permissions
 from dotenv import load_dotenv
 
 load_dotenv()
+CLIENT_ID = os.getenv('CLIENT_ID')
 TOKEN = os.getenv('TOKEN')
-GUILD = os.getenv('GUILD')
+GUILD = json.loads(os.getenv("GUILDS"))
 bot = discord.Bot()
 
 
@@ -16,11 +19,13 @@ class ThreadModal(Modal):
         self.add_item(InputText(label="Thread Name", placeholder="Super Thread"))
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.channel.create_thread(name=self.children[0].value, type=discord.ChannelType.public_thread)
+        thread = await interaction.channel.create_thread(name=self.children[0].value,
+                                                         type=discord.ChannelType.public_thread)
         await interaction.response.send_message(f"Created thread `{self.children[0].value}`", ephemeral=True)
+        await thread.remove_user(bot.user)
 
 
-@bot.slash_command(name="setup", guild_ids=[GUILD], description="Set a channel as a home for creating new threads")
+@bot.slash_command(name="setup", guild_ids=GUILD, description="Set a channel as a home for creating new threads")
 async def setup(ctx, channel: Option(discord.TextChannel, "Select a channel to use for storing threads")):
     await ctx.defer(ephemeral=True)
 
@@ -30,11 +35,11 @@ async def setup(ctx, channel: Option(discord.TextChannel, "Select a channel to u
 
     await channel.set_permissions(bot.user, send_messages=True, manage_webhooks=True)
     await channel.set_permissions(ctx.guild.default_role, overwrite=perms)
-    await channel.send("Click the button below to create a new thread", view=await create_thread_button())
+    await channel.send("Click the button below to create a new thread", view=btn_view())
     await ctx.followup.send(f"Using `{str(channel)}` for threads")
 
 
-@bot.slash_command(name="channel_to_thread", guild_ids=[GUILD], description="Convert a channel to a thread with the "
+@bot.slash_command(name="channel_to_thread", guild_ids=GUILD, description="Convert a channel to a thread with the "
                                                                             "option to remove the original channel")
 async def channel_to_thread(ctx, channel: Option(discord.TextChannel, "Select a channel to turn into a thread"),
                             place: Option(discord.TextChannel, "Select a channel to create the thread in"),
@@ -79,31 +84,35 @@ async def channel_to_thread(ctx, channel: Option(discord.TextChannel, "Select a 
         await ctx.followup.send("Could not move channel to thread")
 
 
-@bot.slash_command(name="remove_all_threads", guild_ids=[GUILD], default_permission=False,
-                   description="Quickly remove all threads in the current channel")
-@permissions.is_owner()
-async def remove_all_threads(ctx):
-    await ctx.defer(ephemeral=True)
-
-    for t in ctx.channel.threads:
-        await t.delete()
-
-    await ctx.followup.send(f"Deleted all threads in channel `{ctx.channel}`")
+# @bot.slash_command(name="remove_all_threads", guild_ids=GUILD, default_permission=False,
+#                    description="Quickly remove all threads in the current channel")
+# async def remove_all_threads(ctx):
+#     await ctx.defer(ephemeral=True)
+#
+#     for t in ctx.channel.threads:
+#         await t.delete()
+#
+#     await ctx.followup.send(f"Deleted all threads in channel `{ctx.channel}`")
 
 
 @bot.event
 async def on_ready():
+    bot.add_view(btn_view())
     print(f"Logged in as {bot.user}")
+    print(f"Creating invite link: https://discord.com/api/oauth2/authorize?client_id={CLIENT_ID}"
+          f"&permissions=395942423568&scope=bot%20applications.commands")
 
 
-async def create_thread_button() -> View:
-    class btn_view(View):
-        @discord.ui.button(label="Create new thread", style=discord.ButtonStyle.green, emoji="➕")
-        async def button_callback(self, button, interaction):
-            modal = ThreadModal(title="New Thread")
-            await interaction.response.send_modal(modal)
+class btn_view(View, discord.TextChannel):
+    def __init__(self):
+        super().__init__(timeout=None)
 
-    return btn_view()
+    @discord.ui.button(label="Create new thread",
+                       style=discord.ButtonStyle.green, emoji="➕",
+                       custom_id=f"button_newThread")
+    async def button_callback(self, button, interaction):
+        modal = ThreadModal(title="New Thread", custom_id=f"threadModal_newThread")
+        await interaction.response.send_modal(modal)
 
 
 bot.run(TOKEN)
